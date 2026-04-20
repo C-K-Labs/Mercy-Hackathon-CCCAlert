@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CCCAlert - Safety Assistant</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Top nav bar ──────────────────────────────────────────────────── */
+    .top-nav {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 6px 16px;
+      background: #0f172a;
+      border-bottom: 1px solid #1e293b;
+      flex-shrink: 0;
+    }
+
+    .dashboard-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #1e3a5f;
+      color: #93c5fd;
+      border: 1px solid #2563eb;
+      border-radius: 6px;
+      padding: 5px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-decoration: none;
+      letter-spacing: 0.04em;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .dashboard-link:hover {
+      background: #1d4ed8;
+      color: #fff;
+    }
+
+    /* ── Chatbot section (top half) ─────────────────────────────────── */
+    .chatbot-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #f1f5f9;
+      flex-shrink: 0;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      animation: pulse 2s infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .message { display: flex; }
+    .message.user { justify-content: flex-end; }
+    .message.assistant { justify-content: flex-start; }
+
+    .message-bubble {
+      max-width: 75%;
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+
+    .message.user .message-bubble {
+      background: #3b82f6;
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+
+    .message.assistant .message-bubble {
+      background: #1e293b;
+      color: #e2e8f0;
+      border: 1px solid #334155;
+      border-bottom-left-radius: 4px;
+    }
+
+    .severity-badge {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-top: 6px;
+    }
+
+    .severity-badge.LOW    { background: #14532d; color: #4ade80; }
+    .severity-badge.MEDIUM { background: #431407; color: #fb923c; }
+    .severity-badge.HIGH   { background: #450a0a; color: #f87171; }
+
+    .typing-dots { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+    .typing-dots span {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #64748b;
+      animation: bounce 1.2s infinite;
+    }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); }
+      40% { transform: translateY(-5px); }
+    }
+
+    .chat-input-area {
+      display: flex;
+      gap: 8px;
+      padding: 10px 14px;
+      background: #1e293b;
+      border-top: 1px solid #334155;
+      flex-shrink: 0;
+      align-items: flex-end;
+    }
+
+    textarea {
+      flex: 1;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      color: #e2e8f0;
+      padding: 9px 12px;
+      font-size: 0.88rem;
+      resize: none;
+      outline: none;
+      font-family: inherit;
+      max-height: 100px;
+    }
+
+    textarea:focus { border-color: #3b82f6; }
+    textarea::placeholder { color: #475569; }
+
+    #sendBtn {
+      background: #3b82f6;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 18px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+
+    #sendBtn:hover { background: #2563eb; }
+    #sendBtn:disabled { background: #334155; cursor: not-allowed; }
+
+    /* ── Divider ─────────────────────────────────────────────────────── */
+    .divider {
+      height: 3px;
+      background: #334155;
+      flex-shrink: 0;
+    }
+
+    /* ── Emergency section (bottom half) ────────────────────────────── */
+    .emergency-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0f0a0a;
+      padding: 20px;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    #emergencyBtn {
+      background: #dc2626;
+      color: #fff;
+      border: 3px solid #ef4444;
+      border-radius: 12px;
+      padding: 16px 52px;
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: 3px;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(220, 38, 38, 0.5);
+      transition: all 0.2s;
+    }
+
+    #emergencyBtn:hover:not(:disabled) {
+      background: #b91c1c;
+      box-shadow: 0 0 30px rgba(220, 38, 38, 0.8);
+      transform: scale(1.03);
+    }
+
+    #emergencyBtn:active:not(:disabled) { transform: scale(0.98); }
+
+    #emergencyBtn:disabled {
+      background: #7f1d1d;
+      border-color: #991b1b;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
+    #emergencyStatus {
+      font-size: 0.82rem;
+      color: #94a3b8;
+      text-align: center;
+      min-height: 1.2em;
+    }
+
+    #emergencyResult {
+      display: none;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px 16px;
+      max-width: 480px;
+      width: 100%;
+      font-size: 0.85rem;
+      line-height: 1.6;
+    }
+
+    #emergencyResult .result-severity {
+      font-weight: 700;
+      font-size: 0.8rem;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+
+    #emergencyResult .result-severity.LOW    { color: #4ade80; }
+    #emergencyResult .result-severity.MEDIUM { color: #fb923c; }
+    #emergencyResult .result-severity.HIGH   { color: #f87171; }
+
+    #emergencyResult .result-desc { color: #cbd5e1; }
+    #emergencyResult .result-saved { color: #64748b; font-size: 0.75rem; margin-top: 6px; }
+
+    #cameraFlipBtn {
+      display: none;
+      background: #1e293b;
+      color: #93c5fd;
+      border: 1px solid #2563eb;
+      border-radius: 8px;
+      padding: 7px 16px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    #cameraFlipBtn:hover { background: #1d4ed8; color: #fff; }
+
+    /* ── Login overlay ───────────────────────────────────────────────── */
+    #loginOverlay {
+      position: fixed;
+      inset: 0;
+      background: #0f172a;
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .login-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      padding: 32px 28px;
+      width: 100%;
+      max-width: 360px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .login-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      text-align: center;
+      letter-spacing: 0.04em;
+    }
+
+    .login-subtitle {
+      font-size: 0.8rem;
+      color: #64748b;
+      text-align: center;
+      margin-top: -8px;
+    }
+
+    .login-label {
+      font-size: 0.78rem;
+      color: #94a3b8;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    .login-input {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      color: #e2e8f0;
+      padding: 9px 12px;
+      font-size: 0.88rem;
+      outline: none;
+      font-family: inherit;
+    }
+
+    .login-input:focus { border-color: #3b82f6; }
+    .login-input::placeholder { color: #475569; }
+
+    .login-btn-primary {
+      background: #3b82f6;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 11px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .login-btn-primary:hover { background: #2563eb; }
+
+    .login-btn-guest {
+      background: transparent;
+      color: #64748b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 9px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+    }
+
+    .login-btn-guest:hover { color: #94a3b8; border-color: #475569; }
+
+    .login-divider {
+      height: 1px;
+      background: #334155;
+    }
+
+    /* ── Dispatch tracker ─────────────────────────────────────────────── */
+    #dispatchTracker {
+      display: none;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 14px 16px;
+      max-width: 480px;
+      width: 100%;
+      font-size: 0.85rem;
+    }
+
+    .tracker-heading {
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: #94a3b8;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    .tracker-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .tracker-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .tracker-step-left {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 16px;
+      flex-shrink: 0;
+    }
+
+    .step-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid #334155;
+      background: #0f172a;
+      flex-shrink: 0;
+      margin-top: 2px;
+      transition: background 0.3s, border-color 0.3s;
+    }
+
+    .step-connector {
+      width: 2px;
+      height: 22px;
+      background: #334155;
+      transition: background 0.3s;
+    }
+
+    .tracker-step-label {
+      font-size: 0.83rem;
+      color: #475569;
+      font-weight: 500;
+      padding-bottom: 22px;
+      transition: color 0.3s;
+    }
+
+    .tracker-step:last-child .tracker-step-label { padding-bottom: 0; }
+
+    .tracker-step.active .step-dot {
+      background: #22c55e;
+      border-color: #22c55e;
+      box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+    }
+
+    .tracker-step.active .tracker-step-label {
+      color: #f1f5f9;
+      font-weight: 700;
+    }
+
+    .tracker-step.completed .step-dot {
+      background: #166534;
+      border-color: #166534;
+    }
+
+    .tracker-step.completed .tracker-step-label { color: #64748b; }
+    .tracker-step.completed .step-connector { background: #166534; }
+
+    /* ── Emergency section scroll ────────────────────────────────────── */
+    .emergency-section { overflow-y: auto; justify-content: flex-start; padding-top: 24px; }
+
+    /* ── Responsive ─────────────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      .message-bubble { max-width: 90%; font-size: 0.84rem; }
+      #emergencyBtn { font-size: 1.1rem; padding: 14px 36px; }
+      .login-card { padding: 24px 18px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Login overlay ───────────────────────────────────────────────────── -->
+<div id="loginOverlay">
+  <div class="login-card">
+    <div class="login-title">CCCAlert</div>
+    <div class="login-subtitle">Campus Safety Assistant</div>
+    <div class="login-divider"></div>
+    <div>
+      <label class="login-label" for="loginName">Name</label>
+      <input class="login-input" id="loginName" type="text" placeholder="Your name" autocomplete="name" />
+    </div>
+    <div>
+      <label class="login-label" for="loginPhone">Phone Number</label>
+      <input class="login-input" id="loginPhone" type="tel" placeholder="e.g. (555) 123-4567" autocomplete="tel" />
+    </div>
+    <button class="login-btn-primary" onclick="handleSignIn()">Sign In</button>
+    <button class="login-btn-guest" onclick="handleGuest()">Continue as Guest</button>
+  </div>
+</div>
+
+<!-- ── Navigation bar ──────────────────────────────────────────────────── -->
+<nav class="top-nav">
+  <a href="/dashboard/" class="dashboard-link" target="_blank" rel="noopener noreferrer">
+    Security Dashboard
+  </a>
+</nav>
+
+<!-- ── Chatbot section ─────────────────────────────────────────────────── -->
+<section class="chatbot-section">
+  <div class="chat-header">
+    <div class="status-dot"></div>
+    Safety Assistant
+  </div>
+
+  <div class="chat-messages" id="chatMessages">
+    <div class="message assistant">
+      <div class="message-bubble">
+        Hello. I am your campus safety assistant. Please describe the safety incident or concern you are experiencing, and I will provide appropriate guidance.
+      </div>
+    </div>
+  </div>
+
+  <div class="chat-input-area">
+    <textarea id="userInput" placeholder="Describe the safety incident" rows="2"></textarea>
+    <button id="sendBtn" onclick="sendMessage()">Send</button>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── Emergency section ──────────────────────────────────────────────── -->
+<section class="emergency-section">
+  <button id="emergencyBtn" onclick="handleEmergency()">EMERGENCY</button>
+  <button id="cameraFlipBtn" onclick="flipCamera()">Front Camera</button>
+  <div id="emergencyStatus"></div>
+  <div id="emergencyResult">
+    <div class="result-severity" id="resultSeverity"></div>
+    <div class="result-desc" id="resultDesc"></div>
+    <div class="result-saved" id="resultSaved"></div>
+  </div>
+
+  <div id="dispatchTracker">
+    <div class="tracker-heading">Dispatch Status</div>
+    <div class="tracker-steps">
+      <div class="tracker-step" id="trackerStep1">
+        <div class="tracker-step-left">
+          <div class="step-dot"></div>
+          <div class="step-connector"></div>
+        </div>
+        <div class="tracker-step-label">Report Submitted</div>
+      </div>
+      <div class="tracker-step" id="trackerStep2">
+        <div class="tracker-step-left">
+          <div class="step-dot"></div>
+          <div class="step-connector"></div>
+        </div>
+        <div class="tracker-step-label">Under Review</div>
+      </div>
+      <div class="tracker-step" id="trackerStep3">
+        <div class="tracker-step-left">
+          <div class="step-dot"></div>
+          <div class="step-connector"></div>
+        </div>
+        <div class="tracker-step-label">Escalated / Responding</div>
+      </div>
+      <div class="tracker-step" id="trackerStep4">
+        <div class="tracker-step-left">
+          <div class="step-dot"></div>
+        </div>
+        <div class="tracker-step-label">Resolved</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<video id="cameraPreview" style="position:absolute;opacity:0;width:1px;height:1px;" autoplay muted playsinline></video>
+<canvas id="captureCanvas" style="display:none;"></canvas>
+
+<script>
+  // ── Session state ─────────────────────────────────────────────────────────
+  let userSession = null;
+  let userLocation = null;
+  let currentIncidentId = null;
+  let dispatchPollInterval = null;
+
+  const STATUS_TO_STEP = {
+    'New': 1, 'Open': 1,
+    'Reviewing': 2,
+    'Escalated': 3,
+    'Closed': 4, 'False Positive': 4
+  };
+
+  // ── Feature 2: Location capture ───────────────────────────────────────────
+  function captureLocation() {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) { resolve(); return; }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          userLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+          resolve();
+        },
+        () => { userLocation = null; resolve(); },
+        { timeout: 5000 }
+      );
+    });
+  }
+
+  function showMainApp() {
+    document.getElementById('loginOverlay').style.display = 'none';
+  }
+
+  // ── Feature 1: Login handlers ─────────────────────────────────────────────
+  async function handleSignIn() {
+    const name = document.getElementById('loginName').value.trim();
+    const phone = document.getElementById('loginPhone').value.trim();
+    userSession = { name: name || 'User', phone, isGuest: false };
+    await captureLocation();
+    showMainApp();
+  }
+
+  async function handleGuest() {
+    userSession = { name: 'Guest', phone: '', isGuest: true };
+    await captureLocation();
+    showMainApp();
+  }
+
+  // Allow Enter key on login inputs
+  document.getElementById('loginName').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') handleSignIn();
+  });
+  document.getElementById('loginPhone').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') handleSignIn();
+  });
+
+  // ── Feature 3b: Dispatch tracker ─────────────────────────────────────────
+  function updateDispatchTracker(status) {
+    const activeStep = STATUS_TO_STEP[status] || 1;
+    for (let i = 1; i <= 4; i++) {
+      const el = document.getElementById('trackerStep' + i);
+      if (!el) continue;
+      el.classList.remove('active', 'completed');
+      if (i < activeStep) el.classList.add('completed');
+      else if (i === activeStep) el.classList.add('active');
+    }
+  }
+
+  function stopDispatchPolling() {
+    if (dispatchPollInterval) {
+      clearInterval(dispatchPollInterval);
+      dispatchPollInterval = null;
+    }
+  }
+
+  async function pollDispatchStatus() {
+    if (!currentIncidentId) return;
+    try {
+      const data = await fetch('/incidents').then(r => r.json());
+      const incident = Array.isArray(data) ? data.find(i => i.id === currentIncidentId) : null;
+      if (!incident) {
+        updateDispatchTracker('Closed');
+        stopDispatchPolling();
+        return;
+      }
+      updateDispatchTracker(incident.status);
+      if (incident.status === 'Closed' || incident.status === 'False Positive') {
+        stopDispatchPolling();
+      }
+    } catch (_) {}
+  }
+
+  function startDispatchTracking(incidentId, initialStatus) {
+    currentIncidentId = incidentId;
+    stopDispatchPolling();
+    document.getElementById('dispatchTracker').style.display = 'block';
+    updateDispatchTracker(initialStatus || 'New');
+    if (initialStatus !== 'Closed' && initialStatus !== 'False Positive') {
+      dispatchPollInterval = setInterval(pollDispatchStatus, 5000);
+    }
+  }
+
+  // ── Chatbot ──────────────────────────────────────────────────────────────
+  const chatMessages = document.getElementById('chatMessages');
+  const userInput = document.getElementById('userInput');
+  const sendBtn = document.getElementById('sendBtn');
+
+  userInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  function renderMarkdown(text) {
+    const escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    return escaped
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/\*+/g, '')
+      .replace(/[#`_~]/g, '');
+  }
+
+  function appendMessage(role, text, severity) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'message ' + role;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'message-bubble';
+    if (role === 'assistant') {
+      bubble.innerHTML = renderMarkdown(text);
+    } else {
+      bubble.textContent = text;
+    }
+
+    if (severity) {
+      const badge = document.createElement('div');
+      badge.className = 'severity-badge ' + severity;
+      badge.textContent = severity;
+      bubble.appendChild(badge);
+    }
+
+    wrapper.appendChild(bubble);
+    chatMessages.appendChild(wrapper);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  function showTyping() {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'message assistant';
+    wrapper.id = 'typingIndicator';
+    wrapper.innerHTML = '<div class="message-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>';
+    chatMessages.appendChild(wrapper);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  function removeTyping() {
+    const el = document.getElementById('typingIndicator');
+    if (el) el.remove();
+  }
+
+  async function sendMessage() {
+    const text = userInput.value.trim();
+    if (!text) return;
+
+    userInput.value = '';
+    sendBtn.disabled = true;
+    appendMessage('user', text);
+    showTyping();
+
+    try {
+      const response = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text })
+      });
+
+      const data = await response.json();
+      removeTyping();
+
+      if (response.ok && data.reply) {
+        appendMessage('assistant', data.reply, data.severity || null);
+      } else {
+        appendMessage('assistant', 'Sorry, I was unable to process your request. Please try again.');
+      }
+    } catch (err) {
+      removeTyping();
+      appendMessage('assistant', 'Connection error. Please check your network and try again.');
+    }
+
+    sendBtn.disabled = false;
+    userInput.focus();
+  }
+
+  // ── Emergency ────────────────────────────────────────────────────────────
+  const emergencyBtn = document.getElementById('emergencyBtn');
+  const cameraFlipBtn = document.getElementById('cameraFlipBtn');
+  const emergencyStatus = document.getElementById('emergencyStatus');
+  const emergencyResult = document.getElementById('emergencyResult');
+  const video = document.getElementById('cameraPreview');
+  const canvas = document.getElementById('captureCanvas');
+  const ctx = canvas.getContext('2d');
+
+  let activeStream = null;
+  let currentFacingMode = 'user';
+
+  function setStatus(msg) {
+    emergencyStatus.textContent = msg;
+  }
+
+  function captureFrame() {
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+  }
+
+  function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async function startCamera(facingMode) {
+    if (activeStream) {
+      activeStream.getTracks().forEach(t => t.stop());
+      activeStream = null;
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+
+    video.srcObject = stream;
+    activeStream = stream;
+
+    await new Promise(resolve => { video.onplaying = resolve; });
+    await wait(1000);
+  }
+
+  async function flipCamera() {
+    if (!activeStream) return;
+
+    currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+    cameraFlipBtn.textContent = currentFacingMode === 'user' ? 'Front Camera' : 'Rear Camera';
+    setStatus('Switching camera...');
+
+    try {
+      await startCamera(currentFacingMode);
+      setStatus('Camera switched.');
+    } catch (err) {
+      setStatus('Could not switch camera: ' + err.message);
+    }
+  }
+
+  async function handleEmergency() {
+    emergencyBtn.disabled = true;
+    emergencyResult.style.display = 'none';
+    currentFacingMode = 'user';
+    setStatus('Camera starting...');
+
+    try {
+      await startCamera(currentFacingMode);
+    } catch (err) {
+      setStatus('Camera access denied. Please allow camera permission and try again.');
+      emergencyBtn.disabled = false;
+      return;
+    }
+
+    cameraFlipBtn.style.display = 'inline-block';
+    cameraFlipBtn.textContent = 'Front Camera';
+
+    setStatus('Taking photo 1 in 3 seconds...');
+    await wait(3000);
+    const photo1 = captureFrame();
+    setStatus('Photo 1 captured. Taking photo 2 in 2 seconds...');
+
+    await wait(2000);
+    const photo2 = captureFrame();
+    setStatus('Photo 2 captured. Taking photo 3 in 5 seconds...');
+
+    await wait(5000);
+    const photo3 = captureFrame();
+    setStatus('All photos captured. Analyzing...');
+
+    if (activeStream) {
+      activeStream.getTracks().forEach(t => t.stop());
+      activeStream = null;
+      video.srcObject = null;
+    }
+    cameraFlipBtn.style.display = 'none';
+
+    try {
+      const reporterName = (userSession && !userSession.isGuest && userSession.name) ? userSession.name : 'Guest';
+
+      const response = await fetch('/analyze-emergency', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          images: [photo1, photo2, photo3],
+          snapshotBase64: photo1,
+          userLocation,
+          reporterName
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        const sevEl = document.getElementById('resultSeverity');
+        sevEl.textContent = 'Severity: ' + data.severity;
+        sevEl.className = 'result-severity ' + data.severity;
+        document.getElementById('resultDesc').textContent = data.description;
+        document.getElementById('resultSaved').textContent = 'Report saved at ' + new Date(data.timestamp).toLocaleTimeString();
+        emergencyResult.style.display = 'block';
+        setStatus('Analysis complete. Report has been saved.');
+
+        if (data.id) {
+          startDispatchTracking(data.id, 'New');
+        }
+      } else {
+        setStatus('Analysis failed: ' + (data.error || 'Unknown error'));
+      }
+    } catch (err) {
+      setStatus('Connection error. Please try again.');
+    }
+
+    emergencyBtn.disabled = false;
+  }
+</script>
+</body>
+</html>
