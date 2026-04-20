@@ -77,4 +77,8 @@ RESEND_TO=
 
 ## Team
 
-Team CCCA. Mercy University AI Hackathon, April 18-19, 2026.
+Team CCCA. Mercy University AI Hackathon, April 18-19, 2026
+Chang Hyun Kim
+Charlie Seiler
+Chris Prichinello
+Ariba Shaikh
